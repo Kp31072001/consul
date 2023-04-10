@@ -6,3 +6,4 @@
   kubectl cluster-info
 ### installing consul in the cluster
   helm repo add hashicorp https://helm.releases.hashicorp.com
+  helm install --values values.yaml consul hashicorp/consul --create-namespace --namespace consul --version "1.0.0"
