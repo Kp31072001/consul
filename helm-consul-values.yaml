@@ -1,0 +1,23 @@
+global:
+  enabled: true
+  datacenter: hashidc1
+
+ui:
+  service:
+    type: "LoadBalancer"
+
+connectInject:
+  enabled: true
+
+client:
+  enabled: true
+  grpc: true
+
+server:
+  enabled: true
+  storageClass: local-storage
+  replicas: 3
+  bootstrapExpect: 3 # Should <= replicas count
+  disruptionBudget:
+    enabled: true
+    maxUnavailable: 1
