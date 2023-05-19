@@ -1,6 +1,10 @@
 global:
   enabled: true
   datacenter: hashidc1
+  tls:
+    enabled: true
+  acls:
+    manageSystemACLs: true
 
 ui:
   service:
@@ -14,8 +18,8 @@ client:
   grpc: true
 
 server:
-  enabled: true
-  storageClass: local-storage
+  # enabled: true
+  # storageClass: local-storage
   replicas: 3
   bootstrapExpect: 3 # Should <= replicas count
   disruptionBudget:

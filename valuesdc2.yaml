@@ -6,7 +6,7 @@ global:
   # The prefix used for all resources created in the Helm chart.
   name: consul
   # The name of the datacenter that the agents should register as.
-  datacenter: dc1
+  datacenter: dc2
   # Enables TLS across the cluster to verify authenticity of the Consul servers and clients.
   tls:
     enabled: true
@@ -14,11 +14,21 @@ global:
   acls:
     # If true, automatically manage ACL tokens and policies for all Consul components.
     manageSystemACLs: true
+    createReplicationToken: true
+  gossipEncryption:
+    autoGenerate: true
+  federation:
+    enabled: true
+    createFederationSecret: true
 # Configures values that configure the Consul server cluster.
 server:
   enabled: true
   # The number of server agents to run. This determines the fault tolerance of the cluster.
   replicas: 3
+  bootstrapExpect: 3 # Should <= replicas count
+  disruptionBudget:
+    enabled: true
+    maxUnavailable: 1
 # Contains values that configure the Consul UI.
 ui:
   enabled: true
@@ -26,5 +36,12 @@ ui:
   service:
     type: LoadBalancer
 # Configures and installs the automatic Consul Connect sidecar injector.
+
+meshGateway:
+  enabled: true
+
+ingressGateways:
+  enabled: true
+
 connectInject:
   enabled: true
