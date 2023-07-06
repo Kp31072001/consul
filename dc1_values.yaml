@@ -1,0 +1,28 @@
+global:
+  datacenter: dc1
+  tls:
+    enabled: true
+    enableAutoEncrypt: true
+  # acls:
+  #   manageSystemACLs: false
+  gossipEncryption:
+    secretName: consul-gossip-encryption-key
+    secretKey: key
+server:
+  exposeService:
+    enabled: true
+    type: NodePort
+    nodePort:
+      ## all are random nodePorts and you can set your own
+      http: 30010
+      https: 30011
+      serf: 30012
+      rpc: 30013
+      grpc: 30014
+ui:
+  service:
+    type: NodePort
+
+client:
+  enabled: true
+  grpc: true

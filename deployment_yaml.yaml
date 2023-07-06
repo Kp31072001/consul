@@ -1,0 +1,226 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "2"
+    meta.helm.sh/release-name: consul1
+    meta.helm.sh/release-namespace: consul
+  creationTimestamp: "2023-07-04T11:27:59Z"
+  generation: 2
+  labels:
+    app: consul
+    app.kubernetes.io/managed-by: Helm
+    chart: consul-helm
+    component: mesh-gateway
+    heritage: Helm
+    release: consul1
+  name: consul-mesh-gateway
+  namespace: consul
+  resourceVersion: "31329"
+  uid: 940eecbc-15c8-4a5b-a0c7-28c826c1b9a8
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: consul
+      chart: consul-helm
+      component: mesh-gateway
+      release: consul1
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        consul.hashicorp.com/connect-inject: "false"
+        consul.hashicorp.com/gateway-consul-service-name: mesh-gateway
+        consul.hashicorp.com/gateway-kind: mesh-gateway
+        consul.hashicorp.com/gateway-wan-address-source: Service
+        consul.hashicorp.com/gateway-wan-address-static: ""
+        consul.hashicorp.com/gateway-wan-port: "443"
+        consul.hashicorp.com/mesh-gateway-container-port: "8443"
+      creationTimestamp: null
+      labels:
+        app: consul
+        chart: consul-helm
+        component: mesh-gateway
+        consul.hashicorp.com/connect-inject-managed-by: consul-k8s-endpoints-controller
+        release: consul1
+    spec:
+      containers:
+        - args:
+            - -addresses=consul-server.consul.svc
+            - -grpc-port=8502
+            - -proxy-service-id-path=/consul/service/proxy-id
+            - -ca-certs=/consul/tls/ca/tls.crt
+            - -log-level=info
+            - -log-json=false
+          command:
+            - consul-dataplane
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: DP_CREDENTIAL_LOGIN_META1
+              value: pod=$(NAMESPACE)/$(POD_NAME)
+            - name: DP_CREDENTIAL_LOGIN_META2
+              value: component=mesh-gateway
+            - name: DP_SERVICE_NODE_NAME
+              value: $(NODE_NAME)-virtual
+          image: hashicorp/consul-dataplane:1.2.0
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 8443
+            timeoutSeconds: 5
+          name: mesh-gateway
+          ports:
+            - containerPort: 8443
+              name: gateway
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 8443
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /consul/service
+              name: consul-service
+              readOnly: true
+            - mountPath: /consul/tls/ca
+              name: consul-ca-cert
+              readOnly: true
+      dnsPolicy: ClusterFirst
+      initContainers:
+        - command:
+            - /bin/sh
+            - -ec
+            - |
+              consul-k8s-control-plane connect-init -pod-name=${POD_NAME} -pod-namespace=${NAMESPACE} \
+               -gateway-kind="mesh-gateway" \
+               -proxy-id-file=/consul/service/proxy-id \
+               -service-name=mesh-gateway \
+               -log-level=debug \
+               -log-json=false
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: CONSUL_ADDRESSES
+              value: consul-server.consul.svc
+            - name: CONSUL_GRPC_PORT
+              value: "8502"
+            - name: CONSUL_HTTP_PORT
+              value: "8501"
+            - name: CONSUL_DATACENTER
+              value: dc2
+            - name: CONSUL_API_TIMEOUT
+              value: 5s
+            - name: CONSUL_USE_TLS
+              value: "true"
+            - name: CONSUL_CACERT_FILE
+              value: /consul/tls/ca/tls.crt
+            - name: CONSUL_NODE_NAME
+              value: $(NODE_NAME)-virtual
+          image: hashicorp/consul-k8s-control-plane:1.2.0
+          imagePullPolicy: IfNotPresent
+          name: mesh-gateway-init
+          resources:
+            limits:
+              cpu: 50m
+              memory: 50Mi
+            requests:
+              cpu: 50m
+              memory: 50Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /consul/service
+              name: consul-service
+            - mountPath: /consul/tls/ca
+              name: consul-ca-cert
+              readOnly: true
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: consul-mesh-gateway
+      serviceAccountName: consul-mesh-gateway
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - emptyDir:
+            medium: Memory
+          name: consul-service
+        - name: consul-ca-cert
+          secret:
+            defaultMode: 420
+            items:
+              - key: caCert
+                path: tls.crt
+            secretName: consul-federation
+status:
+  conditions:
+    - lastTransitionTime: "2023-07-04T11:27:59Z"
+      lastUpdateTime: "2023-07-04T11:27:59Z"
+      message: Deployment does not have minimum availability.
+      reason: MinimumReplicasUnavailable
+      status: "False"
+      type: Available
+    - lastTransitionTime: "2023-07-04T11:27:59Z"
+      lastUpdateTime: "2023-07-04T11:54:53Z"
+      message: ReplicaSet "consul-mesh-gateway-77bf9fc69d" is progressing.
+      reason: ReplicaSetUpdated
+      status: "True"
+      type: Progressing
+  observedGeneration: 2
+  replicas: 2
+  unavailableReplicas: 2
+  updatedReplicas: 1
